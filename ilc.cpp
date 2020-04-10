@@ -9,7 +9,7 @@ void error(string msg) {
 	exit(0);
 }
 
-typedef enum { EXPR, VAR, ABS, APP, ITEM, LAMBDA, DOT, LPAREN, RPAREN, END } type_t;
+typedef enum { EXPR, VAR, ABS, APP, ITEM, LAMBDA, LPAREN, RPAREN, END } type_t;
 
 struct Token {
 	type_t type;
@@ -22,7 +22,6 @@ struct Token {
 		switch (type) {
 			case VAR: s_type = "variable"; break;
 			case LAMBDA: s_type = "^"; break;
-			case DOT: s_type = "."; break;
 			case LPAREN: s_type = "("; break;
 			case RPAREN: s_type = ")"; break;
 			case END: s_type = "EOF"; break;
@@ -36,7 +35,7 @@ struct Token {
 
 class Lexer {
 public:
-	Lexer(istream & input = cin): n(0), input(input), line(1), offset(0) {}
+	Lexer(istream & input = cin): input(input), line(1), offset(0) {}
 	Token next() {
 		char c;
 		while ((c = input.get()) != EOF) {
@@ -47,8 +46,6 @@ public:
 			}
 			if (c == '^') {
 				return Token(LAMBDA);
-			} else if (c == '.') {
-				return Token(DOT);
 			} else if (c == '(') {
 				return Token(LPAREN);
 			} else if (c == ')') {
@@ -56,20 +53,16 @@ public:
 			} else {
 				// mapping variable to number
 				string s = "";
-				while (c != EOF && !isspace(c) && c != '^' && c != '.' && c != '(' && c != ')') {
+				while (isdigit(c)) {
 					if (s != "") { c = input.get(); offset++; }
 					s += c;
 					c = input.peek();
 				};
-				if (variables.count(s) == 0) {
-					variables[s] = n++;
-				}
-				return Token(VAR, variables[s]);
+				return Token(VAR, stoi(s));
 			}
 		}
 		return Token(END);
 	}
-	int getVariableNumber() { return n; }
 	int getLine() { return line; }
 	int getOffset() { return offset; }
 	string getPosition() {
@@ -78,8 +71,6 @@ public:
 		return ss.str();
 	}
 private:
-	map<string, int> variables;
-	int n;
 	istream & input;
 	int line;
 	int offset;
@@ -106,13 +97,11 @@ public:
 
 class Abstraction: public AST {
 public:
-	Abstraction(Variable * var, AST * expr): var(var), expr(expr), AST(ABS) {}
-	~Abstraction() { delete var; delete expr; }
-	Variable * var;
+	Abstraction(AST * expr): expr(expr), AST(ABS) {}
+	~Abstraction() { delete expr; }
 	AST * expr;
 	void visit() {
 		cout << "Abstraction:" << endl;
-		var->visit();
 		expr->visit();
 	}
 };
@@ -146,14 +135,10 @@ public:
 		}
 	}
 	AST * expr() {
-		// <expr> ::= ^ <var> . <expr> | <app>
+		// <expr> ::= ^ <expr> | <app>
 		if (current_token.type == LAMBDA) {
 			match(LAMBDA);
-			int value = current_token.value;
-			match(VAR);
-			Variable * var = new Variable(value);
-			match(DOT);
-			return new Abstraction(var, expr());
+			return new Abstraction(expr());
 		} else {
 			return app();
 		}

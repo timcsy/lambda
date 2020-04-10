@@ -9,7 +9,7 @@ void error(string msg) {
 	exit(0);
 }
 
-typedef enum { EXPR, VAR, ABS, APP, ITEM, LAMBDA, DOT, LPAREN, RPAREN, END } type_t;
+typedef enum { EXPR, VAR, ABS, APP, END } type_t;
 
 struct Token {
 	type_t type;
@@ -21,10 +21,8 @@ struct Token {
 		string s_type;
 		switch (type) {
 			case VAR: s_type = "variable"; break;
-			case LAMBDA: s_type = "^"; break;
-			case DOT: s_type = "."; break;
-			case LPAREN: s_type = "("; break;
-			case RPAREN: s_type = ")"; break;
+			case ABS: s_type = "00"; break;
+			case APP: s_type = "01"; break;
 			case END: s_type = "EOF"; break;
 			default: s_type = ""; break;
 		}
@@ -36,7 +34,7 @@ struct Token {
 
 class Lexer {
 public:
-	Lexer(istream & input = cin): n(0), input(input), line(1), offset(0) {}
+	Lexer(istream & input = cin): input(input), line(1), offset(0) {}
 	Token next() {
 		char c;
 		while ((c = input.get()) != EOF) {
@@ -45,31 +43,33 @@ public:
 				if (c == '\n') { line++; offset = 0; }
 				continue;
 			}
-			if (c == '^') {
-				return Token(LAMBDA);
-			} else if (c == '.') {
-				return Token(DOT);
-			} else if (c == '(') {
-				return Token(LPAREN);
-			} else if (c == ')') {
-				return Token(RPAREN);
-			} else {
-				// mapping variable to number
-				string s = "";
-				while (c != EOF && !isspace(c) && c != '^' && c != '.' && c != '(' && c != ')') {
-					if (s != "") { c = input.get(); offset++; }
-					s += c;
-					c = input.peek();
-				};
-				if (variables.count(s) == 0) {
-					variables[s] = n++;
+			if (c == '0') {
+				c = input.get(); offset++;
+				if (c == '0') {
+					return Token(ABS);
+				} else if (c == '1') {
+					return Token(APP);
+				} else {
+					error(string("Unexpected character: ") + c + " at " + getPosition());
 				}
-				return Token(VAR, variables[s]);
+			} else {
+				// variable
+				int n = 0;
+				while (c == '1') {
+					if (n != 0) { c = input.get(); offset++; }
+					n++;
+					c = input.peek();
+				}
+				if (c == '0') {
+					c = input.get(); offset++;
+					return Token(VAR, n);
+				} else {
+					error(string("Unexpected character: ") + c + " at " + getPosition());
+				}
 			}
 		}
 		return Token(END);
 	}
-	int getVariableNumber() { return n; }
 	int getLine() { return line; }
 	int getOffset() { return offset; }
 	string getPosition() {
@@ -78,8 +78,6 @@ public:
 		return ss.str();
 	}
 private:
-	map<string, int> variables;
-	int n;
 	istream & input;
 	int line;
 	int offset;
@@ -106,13 +104,11 @@ public:
 
 class Abstraction: public AST {
 public:
-	Abstraction(Variable * var, AST * expr): var(var), expr(expr), AST(ABS) {}
-	~Abstraction() { delete var; delete expr; }
-	Variable * var;
+	Abstraction(AST * expr): expr(expr), AST(ABS) {}
+	~Abstraction() { delete expr; }
 	AST * expr;
 	void visit() {
 		cout << "Abstraction:" << endl;
-		var->visit();
 		expr->visit();
 	}
 };
@@ -146,39 +142,24 @@ public:
 		}
 	}
 	AST * expr() {
-		// <expr> ::= ^ <var> . <expr> | <app>
-		if (current_token.type == LAMBDA) {
-			match(LAMBDA);
-			int value = current_token.value;
-			match(VAR);
-			Variable * var = new Variable(value);
-			match(DOT);
-			return new Abstraction(var, expr());
-		} else {
-			return app();
-		}
-	}
-	AST * app() {
-		// <app> ::= <app> <item> | <item>
-		AST * node = item();
-		if (node == NULL) {
-			return NULL;
-		} else {
-			return new Application(node, app());
-		}
-	}
-	AST * item() {
-		// <item> ::= ( <expr> ) | <var>
-		if (current_token.type == LPAREN) {
-			match(LPAREN);
+		// <expr> ::= 00 <expr> | 01 <expr> <expr> | 1+0
+		if (current_token.type == ABS) {
+			match(ABS);
+			return new Abstraction(expr());
+		} else if (current_token.type == APP) {
+			match(APP);
 			AST * node = expr();
-			match(RPAREN);
-			return node;
+			if (node == NULL) {
+				return NULL;
+			} else {
+				return new Application(node, expr());
+			}
 		} else if (current_token.type == VAR) {
 			int value = current_token.value;
 			match(VAR);
 			return new Variable(value);
 		} else {
+			error(string("Unexpected token: ") + current_token.to_string() + " at " + lexer.getPosition() );
 			return NULL;
 		}
 	}
