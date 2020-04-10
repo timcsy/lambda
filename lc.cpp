@@ -2,6 +2,7 @@
 #include <iostream>
 #include <sstream>
 #include <map>
+#include <vector>
 using namespace std;
 
 void error(string msg) {
@@ -87,55 +88,76 @@ private:
 
 class AST {
 public:
-	AST(type_t type): type(type) {}
+	AST(type_t type, ostream & output = cout): type(type), output(output) {}
 	virtual ~AST() {}
 	type_t type;
+	int scope;
+	int bind;
 	virtual void visit() = 0;
+	ostream & output;
 };
 
 class Variable: public AST {
 public:
-	Variable(int var): var(var), AST(VAR) {}
+	Variable(int var, ostream & output = cout): var(var), AST(VAR, output) {}
 	~Variable() {}
 	int var;
 	void visit() {
+		#ifdef DEBUG
 		cout << "Variable: ";
 		cout << var << endl;
+		#endif
+		output << bind - scope + 1 << " ";
 	}
 };
 
 class Abstraction: public AST {
 public:
-	Abstraction(Variable * var, AST * expr): var(var), expr(expr), AST(ABS) {}
+	Abstraction(Variable * var, AST * expr, ostream & output = cout): var(var), expr(expr), AST(ABS, output) {}
 	~Abstraction() { delete var; delete expr; }
 	Variable * var;
 	AST * expr;
 	void visit() {
+		#ifdef DEBUG
 		cout << "Abstraction:" << endl;
-		var->visit();
+		#endif
+		output << "^ ";
+		scope++;
+		bind++;
+		int var_scope = var->scope;
+		int var_bind = var->bind;
+		var->scope = scope;
+		var->bind = bind;
+		expr->scope = scope;
+		expr->bind = bind;
 		expr->visit();
+		var->scope = var_scope;
+		var->bind = var_bind;
 	}
 };
 
 class Application: public AST {
 public:
-	Application(): next(NULL), AST(APP) {}
-	Application(AST * item, AST * next): item(item), next(next), AST(APP) {}
-	~Application() { delete item; delete next; }
-	AST * item;
-	AST * next;
+	Application(vector<AST *> items, ostream & output = cout): items(items), AST(APP, output) {}
+	~Application() { for (int i = 0; i < items.size(); i++) { delete (items[i]); } items.clear(); }
+	vector<AST *> items;
 	void visit() {
+		#ifdef DEBUG
 		cout << "Application:" << endl;
-		item->visit();
-		if (next != NULL) {
-			next->visit();
+		#endif
+		output << "( ";
+		for (int i = 0; i < items.size(); i++) {
+			if (items[i]->type != VAR) items[i]->scope = scope;
+			items[i]->bind = bind;
+			items[i]->visit();
 		}
+		output << ") ";
 	}
 };
 
 class Parser {
 public:
-	Parser(istream & input = cin): input(input), lexer(input) {
+	Parser(istream & input = cin, ostream & output = cout): input(input), output(output), lexer(input) {
 		current_token = lexer.next();
 	}
 	void match(type_t token_type) {
@@ -151,21 +173,23 @@ public:
 			match(LAMBDA);
 			int value = current_token.value;
 			match(VAR);
-			Variable * var = new Variable(value);
 			match(DOT);
-			return new Abstraction(var, expr());
+			if (variables.count(value) == 0) {
+				variables[value] = new Variable(value, output);
+			}
+			return new Abstraction(variables[value], expr(), output);
 		} else {
 			return app();
 		}
 	}
 	AST * app() {
 		// <app> ::= <app> <item> | <item>
-		AST * node = item();
-		if (node == NULL) {
-			return NULL;
-		} else {
-			return new Application(node, app());
+		vector<AST *> items;
+		AST * node;
+		while ((node = item()) != NULL) {
+			items.push_back(node);
 		}
+		return new Application(items, output);
 	}
 	AST * item() {
 		// <item> ::= ( <expr> ) | <var>
@@ -177,7 +201,10 @@ public:
 		} else if (current_token.type == VAR) {
 			int value = current_token.value;
 			match(VAR);
-			return new Variable(value);
+			if (variables.count(value) == 0) {
+				variables[value] = new Variable(value, output);
+			}
+			return variables[value];
 		} else {
 			return NULL;
 		}
@@ -185,13 +212,25 @@ public:
 private:
 	Lexer lexer;
 	istream & input;
+	ostream & output;
 	Token current_token;
+	map<int, Variable *> variables;
 };
 
-int main(int argc, char * argv[]) {
-	Parser parser;
+string alpha(istream& input = cin, ostream & output = cout) {
+	stringstream ss;
+	Parser parser(input, ss);
 	AST * node = parser.expr();
+	node->scope = 0;
+	node->bind = 0;
 	node->visit();
+	return ss.str();
+} 
+
+int main(int argc, char * argv[]) {
+	cout << alpha() << endl;
+	#ifdef DEBUG
 	cout << "Successfully parsed!" << endl;
+	#endif
 	return 0;
 }
