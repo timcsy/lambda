@@ -88,11 +88,11 @@ private:
 
 class AST {
 public:
-	AST(type_t type, ostream & output = cout): type(type), output(output) {}
+	AST(type_t type, ostream & output = cout): type(type), output(output), bind(0), scope(0) {}
 	virtual ~AST() {}
 	type_t type;
-	int scope;
 	int bind;
+	int scope;
 	virtual void visit() = 0;
 	ostream & output;
 };
@@ -107,7 +107,11 @@ public:
 		cout << "Variable: ";
 		cout << var << endl;
 		#endif
-		output << bind - scope + 1 << " ";
+		if (bind < 1) {
+			error("Sementic Error: There exists some free variables, use abstraction first.");
+		} else {
+			output << scope - bind + 1 << " ";
+		}
 	}
 };
 
@@ -122,17 +126,17 @@ public:
 		cout << "Abstraction:" << endl;
 		#endif
 		output << "^ ";
-		scope++;
 		bind++;
-		int var_scope = var->scope;
+		scope++;
 		int var_bind = var->bind;
-		var->scope = scope;
+		int var_scope = var->scope;
 		var->bind = bind;
-		expr->scope = scope;
+		var->scope = scope;
 		expr->bind = bind;
+		expr->scope = scope;
 		expr->visit();
-		var->scope = var_scope;
 		var->bind = var_bind;
+		var->scope = var_scope;
 	}
 };
 
@@ -147,8 +151,8 @@ public:
 		#endif
 		output << "( ";
 		for (int i = 0; i < items.size(); i++) {
-			if (items[i]->type != VAR) items[i]->scope = scope;
-			items[i]->bind = bind;
+			if (items[i]->type != VAR) items[i]->bind = bind;
+			items[i]->scope = scope;
 			items[i]->visit();
 		}
 		output << ") ";
@@ -209,6 +213,9 @@ public:
 			return NULL;
 		}
 	}
+	Token getLastToken() {
+		return current_token;
+	}
 private:
 	Lexer lexer;
 	istream & input;
@@ -221,9 +228,10 @@ string alpha(istream& input = cin, ostream & output = cout) {
 	stringstream ss;
 	Parser parser(input, ss);
 	AST * node = parser.expr();
-	node->scope = 0;
-	node->bind = 0;
 	node->visit();
+	if (parser.getLastToken().type != END) {
+		error("Incomplete intput format, you can try to use parentheses on the outside of the all.");
+	}
 	return ss.str();
 } 
 
