@@ -93,7 +93,8 @@ public:
 	type_t type;
 	int bind;
 	int scope;
-	virtual void visit() = 0;
+	bool has_parentheses;
+	virtual void visit(string output_form = "index") = 0;
 	ostream & output;
 };
 
@@ -102,15 +103,16 @@ public:
 	Variable(int var, ostream & output = cout): var(var), AST(VAR, output) {}
 	~Variable() {}
 	int var;
-	void visit() {
-		#ifdef DEBUG
-		cout << "Variable: ";
-		cout << var << endl;
-		#endif
+	void visit(string output_form = "index") {
 		if (bind < 1) {
 			error("Sementic Error: There exists some free variables, use abstraction first.");
 		} else {
-			output << scope - bind + 1 << " ";
+			if (output_form == "index") { // De Bruijn index Lambda Calculus
+				output << scope - bind + 1 << " ";
+			} else if (output_form == "binary") { // Binary Lambda Calculus
+				for (int i = 0; i < scope - bind + 1; i++) { output << "1"; }
+				output << "0";
+			}
 		}
 	}
 };
@@ -121,22 +123,20 @@ public:
 	~Abstraction() { delete var; delete expr; }
 	Variable * var;
 	AST * expr;
-	void visit() {
-		#ifdef DEBUG
-		cout << "Abstraction:" << endl;
-		#endif
-		output << "^ ";
-		bind++;
-		scope++;
+	void visit(string output_form = "index") { // De Bruijn index Lambda Calculus
+		if (output_form == "index") {
+			output << "^ ";
+		} else if (output_form == "binary") { // Binary Lambda Calculus
+			output << "00";
+		}
+		bind++; scope++;
 		int var_bind = var->bind;
-		int var_scope = var->scope;
 		var->bind = bind;
 		var->scope = scope;
 		expr->bind = bind;
 		expr->scope = scope;
-		expr->visit();
+		expr->visit(output_form);
 		var->bind = var_bind;
-		var->scope = var_scope;
 	}
 };
 
@@ -145,17 +145,22 @@ public:
 	Application(vector<AST *> items, ostream & output = cout): items(items), AST(APP, output) {}
 	~Application() { for (int i = 0; i < items.size(); i++) { delete (items[i]); } items.clear(); }
 	vector<AST *> items;
-	void visit() {
-		#ifdef DEBUG
-		cout << "Application:" << endl;
-		#endif
-		output << "( ";
+	void visit(string output_form = "index") { // De Bruijn index Lambda Calculus
 		for (int i = 0; i < items.size(); i++) {
+			if (items[i]->has_parentheses) {
+				if (output_form == "index") {
+					output << "( ";
+				} else if (output_form == "binary") { // Binary Lambda Calculus
+					output << "01";
+				}
+			}
+
 			if (items[i]->type != VAR) items[i]->bind = bind;
 			items[i]->scope = scope;
-			items[i]->visit();
+			items[i]->visit(output_form);
+			
+			if (items[i]->has_parentheses && output_form == "index") { output << ") "; } // De Bruijn index Lambda Calculus
 		}
-		output << ") ";
 	}
 };
 
@@ -201,6 +206,7 @@ public:
 			match(LPAREN);
 			AST * node = expr();
 			match(RPAREN);
+			node->has_parentheses = true;
 			return node;
 		} else if (current_token.type == VAR) {
 			int value = current_token.value;
@@ -224,11 +230,11 @@ private:
 	map<int, Variable *> variables;
 };
 
-string alpha(istream& input = cin, ostream & output = cout) {
+string alpha(string option = "index", istream& input = cin, ostream & output = cout) {
 	stringstream ss;
 	Parser parser(input, ss);
 	AST * node = parser.expr();
-	node->visit();
+	node->visit(option);
 	if (parser.getLastToken().type != END) {
 		error("Incomplete intput format, you can try to use parentheses on the outside of the all.");
 	}
@@ -236,9 +242,16 @@ string alpha(istream& input = cin, ostream & output = cout) {
 } 
 
 int main(int argc, char * argv[]) {
-	cout << alpha() << endl;
-	#ifdef DEBUG
-	cout << "Successfully parsed!" << endl;
-	#endif
+	string output_form;
+	if (argc == 1) {
+		output_form = "index";
+	} else if (argc == 2) {
+		if (strcmp(argv[1], "-i") == 0) {
+			output_form =  "index";
+		} else if (strcmp(argv[1], "-b") == 0) {
+			output_form = "binary";
+		}
+	}
+	cout << alpha(output_form) << endl;
 	return 0;
 }

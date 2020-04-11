@@ -33,3 +33,12 @@ Reference:
          | 01 <expr> <expr>
          | 1+0
 ```
+
+## Ussage
+```
+./lc [-ib] <<EOF
+> type
+> whatever you want
+> to type
+> EOF
+```
