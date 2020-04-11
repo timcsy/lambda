@@ -35,8 +35,46 @@ Reference:
 ```
 
 ## Ussage
+
+From lambda calculus convert to index lambda calculus
 ```
-./lc [-ib] <<EOF
+./lc -i <<EOF
+> type
+> whatever you want
+> to type
+> EOF
+```
+
+From lambda calculus convert to binrary lambda calculus
+```
+./lc -b <<EOF
+> type
+> whatever you want
+> to type
+> EOF
+```
+
+From index lambda calculus
+```
+./ilc <<EOF
+> type
+> whatever you want
+> to type
+> EOF
+```
+
+Execute binary lambda calculus
+```
+./blc <<EOF
+> type
+> whatever you want
+> to type
+> EOF
+```
+
+Piplining lambda calculus to binary lambda calculus
+```
+./lc -b | ./blc <<EOF
 > type
 > whatever you want
 > to type
