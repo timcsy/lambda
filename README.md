@@ -4,27 +4,30 @@ Reference:
 - https://en.wikipedia.org/wiki/Lambda_calculus_definition#Syntax_definition_in_BNF
 - https://ruslanspivak.com/lsbasi-part1/
 - https://tromp.github.io/cl/Binary_lambda_calculus.html
+- https://cs.stackexchange.com/questions/109954/writing-a-grammar-for-lambda-calculus
 
 ## BNF used for Normal Lambda Calculus in this project
 ```
-<expr> ::= ^ <var> . <expr>
+<expr> ::= <abs>
          | <app>
-<app> ::= <app> <item>
-        | <item>
 <item> ::= ( <expr> )
          | <var>
 <var> ::= (^[\^\.\(\)\s])+
+<abs> ::= ^ <var> . <expr>
+<app> ::= <item>
+        | <app> (<abs> | <item>)
 ```
 
-## BNF used for De Bruijn index Lambda Calculus in this project
+## BNF used for De Bruijn indexed Lambda Calculus in this project
 ```
-<expr> ::= ^ <expr>
+<expr> ::= <abs>
          | <app>
-<app> ::= <app> <item>
-        | <item>
 <item> ::= ( <expr> )
          | <var>
 <var> ::= [0-9]+
+<abs> ::= ^ <expr>
+<app> ::= <item>
+        | <app> (<abs> | <item>)
 ```
 
 ## BNF used for Binary Lambda Calculus in this project
@@ -35,46 +38,16 @@ Reference:
 ```
 
 ## Ussage
-
-From lambda calculus convert to index lambda calculus
+Note
 ```
-./lc -i <<EOF
-> type
-> whatever you want
-> to type
-> EOF
+-l lambda calculus
+-i De Bruijn indexed lambda calculus
+-b Binary Lambda Calculus
 ```
 
-From lambda calculus convert to binrary lambda calculus
+From -x（-l, -i, -b） convert to -y（-l, -i, -b）
 ```
-./lc -b <<EOF
-> type
-> whatever you want
-> to type
-> EOF
-```
-
-From index lambda calculus
-```
-./ilc <<EOF
-> type
-> whatever you want
-> to type
-> EOF
-```
-
-Execute binary lambda calculus
-```
-./blc <<EOF
-> type
-> whatever you want
-> to type
-> EOF
-```
-
-Piplining lambda calculus to binary lambda calculus
-```
-./lc -b | ./blc <<EOF
+bin/lc -x -y <<EOF
 > type
 > whatever you want
 > to type
