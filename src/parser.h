@@ -12,7 +12,7 @@ public:
 	Parser(Lexer * lexer): free_variable(NULL), lexer(lexer) {
 		current_token = lexer->next();
 	}
-	~Parser() { delete lexer; }
+	virtual ~Parser() { if (lexer) { delete lexer; } }
 	void match(type_t token_type) {
 		if (current_token.type == token_type) {
 			current_token = lexer->next();

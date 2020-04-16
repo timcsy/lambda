@@ -8,6 +8,7 @@
 class Lexer {
 public:
 	Lexer(istream & input = cin): input(input), line(1), offset(0) {}
+	virtual ~Lexer() {}
 	virtual Token next() = 0;
 	int getLine() { return line; }
 	int getOffset() { return offset; }

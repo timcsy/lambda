@@ -6,7 +6,7 @@
 class Lambda {
 public:
 	Lambda(type_t input_form = LAMBDA, type_t output_form = INDEXED, istream & input = cin, ostream & output = cout):
-		input_form(input_form), output_form(output_form), input(input), output(output) {
+		input_form(input_form), output_form(output_form), input(input), output(output), var_num(0) {
 		switch (input_form) {
 			case LAMBDA: parser = new LambdaParser(input); break;
 			case INDEXED: parser = new IndexedParser(input); break;
@@ -16,7 +16,7 @@ public:
 	}
 	~Lambda() {
 		if (parser) { delete parser; }
-		if (expr) { delete expr; }
+		// TODO: delete Nodes
 	}
 
 	void parse() {
@@ -24,11 +24,29 @@ public:
 	}
 
 	void reduction() {
-		
+
 	}
 
 	void convert() {
 		convert(expr);
+		output << endl;
+	}
+
+	int var_index(Node * node, Node * scope) {
+		int n = 1;
+		while (node->in != scope) {
+			n++;
+			if (scope) { scope = scope->in; }
+			else { node = node->in; }
+		}
+		return n;
+	}
+
+	int var_name(Node * node) { // node is the pointer of abstraction
+		if (variables.count(node) == 0) { // if new variable
+			variables[node] = ++var_num;
+		}
+		return variables[node];
 	}
 	
 	void convert(Node * node, Node * scope = NULL) {
@@ -36,26 +54,41 @@ public:
 			if (node->out) {
 				if (node->in) {
 					// application
-					output << "( ";
+					if (output_form == LAMBDA || output_form == INDEXED) {
+						output << "( ";
+					} else if (output_form == BLC_TEXT) {
+						output << "01";
+					}
 					convert(node->out, scope);
 					convert(node->in, scope);
-					output << ") ";
+					if (output_form == LAMBDA || output_form == INDEXED) {
+						output << ") ";
+					}
 				} else {
 					// abstraction
-					output << "^ ";
+					if (output_form == LAMBDA) {
+						output << "^ ";
+						output << var_name(node) << " . ";
+					} else if (output_form == INDEXED) {
+						output << "^ ";
+					} else if (output_form == BLC_TEXT) {
+						output << "00";
+					}
 					node->in = scope;
 					convert(node->out, node);
 					node->in = NULL;
 				}
 			} else {
 				// variable
-				int n = 1;
-				while (node->in != scope) {
-					n++;
-					if (scope) { scope = scope->in; }
-					else { node = node->in; }
+				if (output_form == LAMBDA) {
+					output << var_name(node->in) << " ";
+				} else if (output_form == INDEXED) {
+					output << var_index(node, scope) << " ";
+				} else if (output_form == BLC_TEXT) {
+					int n = var_index(node, scope);
+					for (int i = 0; i < n; i++) { output << "1"; }
+					output << "0";
 				}
-				output << n << " ";
 			}
 		}
 	}
@@ -67,6 +100,8 @@ protected:
 	type_t output_form;
 	istream & input;
 	ostream & output;
+	map<Node *, int> variables;
+	int var_num;
 };
 
 #endif
