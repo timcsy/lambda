@@ -97,7 +97,8 @@ class BLCTextLexer: public Lexer {
 public:
 	BLCTextLexer(istream & input = cin): Lexer(input) {}
 	Token next() {
-		char c, status = 0;
+		char c;
+		type_t status = NONE;
 		int n = 0;
 		while ((c = input.get()) != EOF) {
 			offset++;
@@ -130,6 +131,51 @@ public:
 		}
 		return Token(END, "EOF");
 	}
+};
+
+
+class BLCLexer: public Lexer {
+public:
+	BLCLexer(istream & input = cin): pos(-1), Lexer(input) {}
+	Token next() {
+		type_t status = NONE;
+		int n = 0; // variable
+		if (pos < 0) { c = input.get(); pos = 7; }
+		while (!input.eof()) {
+			while (pos >= 0) {
+				offset++;
+				char b = ((c >> pos) & 1);
+				if (b == 0) {
+					switch (status) {
+						case ZERO: status = ABS; break;
+						case ONE: status = VAR; break;
+						default: status = ZERO; n = 0; break;
+					}
+				} else if (b == 1) {
+					switch (status) {
+						case ZERO: status = APP; break;
+						default: status = ONE; n++; break;
+					}
+				}
+				pos--;
+				if (status == VAR) {
+					string s = "";
+					for (int i = 0; i < n; i++) { s += "1"; }
+					s += "0";
+					return Token(VAR, s, n);
+				} else if (status ==  ABS) {
+					return Token(ABS, "00");
+				} else if (status == APP) {
+					return Token(APP, "01");
+				}
+			}
+			c = input.get(); pos = 7;
+		}
+		return Token(END, "EOF");
+	}
+private:
+	char c;
+	int pos;
 };
 
 #endif

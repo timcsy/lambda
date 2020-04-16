@@ -9,4 +9,10 @@ void error(string msg) {
 	exit(0);
 }
 
+union {
+	char c[4];
+  unsigned long l;
+} endian_test = {{'l', '?', '?', 'b'}};
+#define ENDIANNESS ((char)endian_test.l)
+
 #endif

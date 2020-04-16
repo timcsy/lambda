@@ -209,7 +209,44 @@ public:
 			Node * N = expr();
 			return new Node(N, M);
 		} else {
-			error(string("Unexpected token: ") + current_token.value + " at " + lexer->getPosition() );
+			return NULL;
+		}
+	}
+protected:
+	deque<Node *> scope;
+};
+
+
+class BLCParser: public Parser {
+public:
+	BLCParser(istream & input = cin): Parser(new BLCLexer(input)) {}
+	Node * expr() {
+		// <expr> ::= 00 <expr> | 01 <expr> <expr> | 1+0
+		if (current_token.type == VAR) {
+			int index = current_token.index;
+			match(VAR);
+			while (index > scope.size()) { // if new variable
+				// free variable
+				scope.push_back(new Node(free_variable, NULL));
+				free_variable = scope.back();
+			}
+			return scope[index - 1];
+		} else if (current_token.type == ABS) {
+			match(ABS);
+			// create a new scope
+			scope.push_front(new Node(NULL, NULL));
+			Node * abstraction = new Node(NULL, expr());
+			// bind the variable with the new abstraction
+			scope.front()->in = abstraction;
+			// restore the last scope
+			scope.pop_front();
+			return abstraction;
+		} else if (current_token.type == APP){
+			match(APP);
+			Node * M = expr();
+			Node * N = expr();
+			return new Node(N, M);
+		} else {
 			return NULL;
 		}
 	}

@@ -5,6 +5,7 @@ Reference:
 - https://ruslanspivak.com/lsbasi-part1/
 - https://tromp.github.io/cl/Binary_lambda_calculus.html
 - https://cs.stackexchange.com/questions/109954/writing-a-grammar-for-lambda-calculus
+- https://stackoverflow.com/questions/22390641/read-file-by-bits-c
 
 ## BNF used for Normal Lambda Calculus in this project
 ```
@@ -40,14 +41,20 @@ Reference:
 ## Ussage
 Note
 ```
--l lambda calculus
--i De Bruijn indexed lambda calculus
--bt Binary Lambda Calculus in text format
+l lambda calculus
+i De Bruijn indexed lambda calculus
+bt Binary Lambda Calculus in text format
+b Binary Lambda Calculus in binary format
 ```
 
-From -x（-l, -i, -bt） convert to -y（-l, -i, -bt）
+From （l, i, bt, b） convert to （l, i, bt, b）
 ```
-bin/lc -x -y <<EOF
+bin/lc [--i=type] [input file [...]] [--o=type] [output file [...]]
+```
+
+with std input
+```
+bin/lc [--i=x] [input file [...]] [--o=y] [output file [...]] <<EOF
 > type
 > whatever you want
 > to type
