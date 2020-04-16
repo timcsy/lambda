@@ -8,7 +8,8 @@ using namespace std;
 struct Token {
 	type_t type;
 	string value;
-	Token(type_t type = NONE, string value = ""): type(type), value(value) {}
+	int index;
+	Token(type_t type = NONE, string value = "", int index = 0): type(type), value(value), index(index) {}
 };
 
 #endif

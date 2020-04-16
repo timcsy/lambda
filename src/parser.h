@@ -5,12 +5,14 @@
 #include "node.h"
 #include "util.h"
 #include <map>
+#include <deque>
 
 class Parser {
 public:
 	Parser(Lexer * lexer): free_variable(NULL), lexer(lexer) {
 		current_token = lexer->next();
 	}
+	~Parser() { delete lexer; }
 	void match(type_t token_type) {
 		if (current_token.type == token_type) {
 			current_token = lexer->next();
@@ -25,9 +27,9 @@ public:
 protected:
 	Lexer * lexer;
 	Token current_token;
-	map<string, Node *> variables;
 	Node * free_variable;
 };
+
 
 class LambdaParser: public Parser {
 public:
@@ -102,9 +104,11 @@ public:
 		}
 		return items;
 	}
+protected:
+	map<string, Node *> variables;
 };
 
-// TODO: the variable need to change (from integer to address)
+
 class IndexedParser: public Parser {
 public:
 	IndexedParser(istream & input = cin): Parser(new IndexedLexer(input)) {}
@@ -125,14 +129,14 @@ public:
 			match(RPAREN);
 			return node;
 		} else if (current_token.type == VAR) {
-			string value = current_token.value;
+			int index = current_token.index;
 			match(VAR);
-			if (variables.count(value) == 0) { // if new variable
+			while (index > scope.size()) { // if new variable
 				// free variable
-				variables[value] = new Node(free_variable, NULL);
-				free_variable = variables[value];
+				scope.push_back(new Node(free_variable, NULL));
+				free_variable = scope.back();
 			}
-			return variables[value];
+			return scope[index - 1];
 		} else {
 			return NULL;
 		}
@@ -141,18 +145,13 @@ public:
 		// <abs> ::= ^ <expr>
 		// ^x.M => Node(NULL, M), M has x which is Node(^x.M, NULL)
 		match(LAMBDA);
-		string value = "1";
-		Node * last_var = NULL;
-		if (variables.count(value) != 0) {
-			last_var = variables[value];
-		}
 		// create a new scope
-		variables[value] = new Node(NULL, NULL);
+		scope.push_front(new Node(NULL, NULL));
 		Node * abstraction = new Node(NULL, expr());
 		// bind the variable with the new abstraction
-		variables[value]->in = abstraction;
-		// restore the last variable
-		if (last_var) { variables[value] = last_var; }
+		scope.front()->in = abstraction;
+		// restore the last scope
+		scope.pop_front();
 		return abstraction;
 	}
 	Node * app() {
@@ -175,6 +174,47 @@ public:
 		}
 		return items;
 	}
+protected:
+	deque<Node *> scope;
+};
+
+
+class BLCTextParser: public Parser {
+public:
+	BLCTextParser(istream & input = cin): Parser(new BLCTextLexer(input)) {}
+	Node * expr() {
+		// <expr> ::= 00 <expr> | 01 <expr> <expr> | 1+0
+		if (current_token.type == VAR) {
+			int index = current_token.index;
+			match(VAR);
+			while (index > scope.size()) { // if new variable
+				// free variable
+				scope.push_back(new Node(free_variable, NULL));
+				free_variable = scope.back();
+			}
+			return scope[index - 1];
+		} else if (current_token.type == ABS) {
+			match(ABS);
+			// create a new scope
+			scope.push_front(new Node(NULL, NULL));
+			Node * abstraction = new Node(NULL, expr());
+			// bind the variable with the new abstraction
+			scope.front()->in = abstraction;
+			// restore the last scope
+			scope.pop_front();
+			return abstraction;
+		} else if (current_token.type == APP){
+			match(APP);
+			Node * M = expr();
+			Node * N = expr();
+			return new Node(N, M);
+		} else {
+			error(string("Unexpected token: ") + current_token.value + " at " + lexer->getPosition() );
+			return NULL;
+		}
+	}
+protected:
+	deque<Node *> scope;
 };
 
 #endif

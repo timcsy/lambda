@@ -42,10 +42,10 @@ Note
 ```
 -l lambda calculus
 -i De Bruijn indexed lambda calculus
--b Binary Lambda Calculus
+-bt Binary Lambda Calculus in text format
 ```
 
-From -x（-l, -i, -b） convert to -y（-l, -i, -b）
+From -x（-l, -i, -bt） convert to -y（-l, -i, -bt）
 ```
 bin/lc -x -y <<EOF
 > type

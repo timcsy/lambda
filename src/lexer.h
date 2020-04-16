@@ -84,7 +84,7 @@ public:
 					s += c;
 					c = input.peek();
 				};
-				return Token(VAR, s);
+				return Token(VAR, s, stoi(s));
 			}
 		}
 		return Token(END, "EOF");
@@ -92,9 +92,9 @@ public:
 };
 
 
-class BinaryTextLexer: public Lexer {
+class BLCTextLexer: public Lexer {
 public:
-	BinaryTextLexer(istream & input = cin): Lexer(input) {}
+	BLCTextLexer(istream & input = cin): Lexer(input) {}
 	Token next() {
 		char c, status = 0;
 		int n = 0;
@@ -120,7 +120,7 @@ public:
 				string s = "";
 				for (int i = 0; i < n; i++) { s += "1"; }
 				s += "0";
-				return Token(VAR, s);
+				return Token(VAR, s, n);
 			} else if (status ==  ABS) {
 				return Token(ABS, "00");
 			} else if (status == APP) {
