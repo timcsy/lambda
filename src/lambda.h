@@ -21,11 +21,87 @@ public:
 	}
 
 	void parse() {
+		// VAR: Node(Node, NULL)
+		// ABS: Node(NULL, Node)
+		// APP: Node(Node, Node)
 		expr = parser->expr();
 	}
 
 	void reduction() {
+		print_node(expr);
+		expr = reduction(expr);
+		cout << "after reduction" << endl;
+		print_node(expr);
+	}
 
+	void substitution(Node * node, Node * original, Node * replacement) {
+		// node: the node you want to apply
+		// original: the original node you want to replace
+		// replacement: the replacement node
+		// to replace the original node with replacement node
+		if (node != NULL) {
+			if (node->out) {
+				if (node->in) {
+					// application
+					substitution(node->out, original, replacement);
+					substitution(node->in, original, replacement);
+				} else {
+					// abstraction
+					substitution(node->out, original, replacement);
+				}
+			} else {
+				// variable
+				if (node->in == original) { // is a variable point to original
+					node->in = replacement;
+					return;
+				}
+			}
+		}
+
+		// if (node != NULL) {
+		// 	if (node->in == original && node->out == NULL) { // is a variable point to original
+		// 		node->in = replacement;
+		// 		return;
+		// 	}
+		// 	if (node->out) {
+		// 		substitution(node->out, original, replacement);
+		// 		return;
+		// 	}
+		// 	if (node->in) {
+		// 		substitution(node->in, original, replacement);
+		// 		return;
+		// 	}
+		// }
+	}
+
+	Node * reduction(Node * node) {
+		// (^x.M) N => M[x:=N]
+		// Node(N, Node(NULL, M)) => M[x:=N]
+		if (node != NULL) {
+			if (node->out) {
+				if (node->in) {
+					// application
+					if (!node->out->in && node->out->out) { // abstraction
+						// replace all the x with N in M
+						// i.e. find the node in M that point to the same scope as x
+						// find x in M that point to the same item as x and change it to N
+						substitution(node->out->out, node->out, node->in);
+						Node * M = node->out->out;
+						delete node;
+						delete node->out;
+						return reduction(M);
+					}
+				} else {
+					// abstraction
+				}
+			} else {
+				// variable
+				if (node->in) {
+					return reduction(node->in);
+				}
+			}
+		}
+		return node;
 	}
 
 	void convert() {
